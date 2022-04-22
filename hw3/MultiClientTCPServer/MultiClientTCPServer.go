@@ -31,6 +31,7 @@ func main() {
 		return
 	}
 	defer listener.Close()
+	count = 0
 
 	// Measure time for command 4
 	startTime = time.Now()
@@ -39,6 +40,7 @@ func main() {
 	for {
 		//connect client socket
 		conn, err := listener.Accept()
+		count += 1
 		if nil != err {
 			f.Print("Bye bye~")
 			os.Exit(0)
@@ -52,8 +54,6 @@ func main() {
 		// port := remoteAddrs[1]
 		f.Printf("\nConnection request from %s\n", remoteAddr)
 		go ConnHandler(conn, remoteAddr)
-
-		count = 0
 
 		// when user enters 'Ctrl-C'
 		c := make(chan os.Signal, 1)
