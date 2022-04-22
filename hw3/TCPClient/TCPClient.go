@@ -56,7 +56,11 @@ func main() {
 		f.Print("Input option :")
 
 		num_reader := bufio.NewReader(os.Stdin)
-		num, _ = num_reader.ReadString('\n')
+		num, err = num_reader.ReadString('\n')
+		if nil != err {
+			f.Printf("Bye bye~")
+			os.Exit(0)
+		}
 
 		// print out the returened response based on the command
 		if num == "1\n" {
@@ -98,10 +102,14 @@ func command_1(num string, conn net.Conn) {
 	conn.Write([]byte(num + input))
 
 	buffer := make([]byte, 1024)
-	conn.Read(buffer)
+	n, err := conn.Read(buffer)
+	if nil != err {
+		f.Printf("Bye bye~")
+		os.Exit(0)
+	}
 	elapsedTime := time.Since(startTime)
 
-	response := string(buffer)
+	response := string(buffer[:n])
 	f.Printf("\nReply from server: %s", strings.Trim(response, "\n"))
 
 	// convert rttTime format from seconds to milliseconds
@@ -115,7 +123,11 @@ func command_2(num string, conn net.Conn) {
 	conn.Write([]byte(num))
 
 	buffer := make([]byte, 1024)
-	n, _ := conn.Read(buffer)
+	n, err := conn.Read(buffer)
+	if nil != err {
+		f.Printf("Bye bye~")
+		os.Exit(0)
+	}
 	f.Print(string(buffer[:n]))
 	// elapsedTime := time.Since(startTime)
 
@@ -134,10 +146,14 @@ func command_3(num string, conn net.Conn) {
 	conn.Write([]byte(num))
 
 	buffer := make([]byte, 1024)
-	conn.Read(buffer)
+	n, err := conn.Read(buffer)
+	if nil != err {
+		f.Printf("Bye bye~")
+		os.Exit(0)
+	}
 	elapsedTime := time.Since(startTime)
 
-	response := string(buffer)
+	response := string(buffer[:n])
 	f.Printf("\nReply from server: requests serverd = %s \n", response)
 	rttTime := elapsedTime.Seconds() * 1000
 	f.Printf("RTT = %.4f\n", rttTime)
@@ -150,11 +166,15 @@ func command_4(num string, conn net.Conn) {
 	conn.Write([]byte(num))
 
 	buffer := make([]byte, 1024)
-	conn.Read(buffer)
+	n, err := conn.Read(buffer)
+	if nil != err {
+		f.Printf("Bye bye~")
+		os.Exit(0)
+	}
 	elapsedTime := time.Since(startTime)
 
 	// Convert runtime in second format to HH:MM:SS format
-	response := string(buffer)
+	response := string(buffer[:n])
 	response = strings.Split(response, ".")[0]
 	ss := ""
 	mm := ""
