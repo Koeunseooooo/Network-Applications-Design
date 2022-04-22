@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	serverName := "nsl2.cau.ac.kr"
+	serverName := "localhost"
 	serverPort := "30143"
 
 	// connect server socket

@@ -17,6 +17,9 @@ import (
 	"time"
 )
 
+var startTime time.Time
+var count int
+
 func main() {
 	// we use designated personal port number as serverPort
 	serverPort := "30143"
@@ -30,20 +33,27 @@ func main() {
 	defer listener.Close()
 
 	// Measure time for command 4
-	startTime := time.Now()
+	startTime = time.Now()
 	f.Printf("The server is ready to receive on port %s\n", serverPort)
-
-	buffer := make([]byte, 1024)
 
 	for {
 		//connect client socket
-		conn, _ := listener.Accept()
+		conn, err := listener.Accept()
+		if nil != err {
+			f.Print("Bye bye~")
+			os.Exit(0)
+			return
+		}
+		defer conn.Close()
+
 		remoteAddr := conn.RemoteAddr()
 		// remoteAddrs := strings.Split(string(remoteAddr.String()), "]")
 		// ip := remoteAddrs[0][1:]
 		// port := remoteAddrs[1]
-		count := 0
 		f.Printf("\nConnection request from %s\n", remoteAddr)
+		go ConnHandler(conn, remoteAddr)
+
+		count = 0
 
 		// when user enters 'Ctrl-C'
 		c := make(chan os.Signal, 1)
@@ -58,33 +68,6 @@ func main() {
 			}
 		}()
 
-		for {
-			n, err := conn.Read(buffer)
-			// error handling
-			if err != nil {
-				conn.Close()
-				break
-			}
-			// Check requests num for command 3
-			count += 1
-
-			// Check only the first letter of request: To distinguish it from the text of command1
-			msg := string(buffer[:n][0])
-
-			// receive the command and reply with an appropriate response based on command
-			if msg == "1" {
-				command_1(n, conn, buffer)
-
-			} else if msg == "2" {
-				command_2(remoteAddr, conn)
-
-			} else if msg == "3" {
-				command_3(count, conn)
-			} else if msg == "4" {
-				command_4(startTime, conn)
-			}
-
-		}
 	}
 }
 
@@ -109,4 +92,31 @@ func command_4(startTime time.Time, conn net.Conn) {
 	// check eplasedTime
 	elapsedTime := time.Since(startTime)
 	conn.Write([]byte(elapsedTime.String()))
+}
+
+func ConnHandler(conn net.Conn, remoteAddr net.Addr) {
+	buffer := make([]byte, 1024)
+	for {
+		n, err := conn.Read(buffer)
+		if nil != err {
+			conn.Close()
+			break
+		}
+
+		// Check only the first letter of request: To distinguish it from the text of command1
+		msg := string(buffer[:n][0])
+
+		// receive the command and reply with an appropriate response based on command
+		if msg == "1" {
+			command_1(n, conn, buffer)
+
+		} else if msg == "2" {
+			command_2(remoteAddr, conn)
+
+		} else if msg == "3" {
+			command_3(count, conn)
+		} else if msg == "4" {
+			command_4(startTime, conn)
+		}
+	}
 }
