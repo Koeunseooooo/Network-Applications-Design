@@ -9,6 +9,7 @@ package main
 // Import Required Modules
 import (
 	"bytes"
+	// _ "fmt"
 	f "fmt"
 	"net"
 	"os"
@@ -35,24 +36,37 @@ func main() {
 		return
 	}
 	defer listener.Close()
+
 	numOfReq = 0
 	numOfCon = 0
 
-	// Measure time for command 4
+	// Measure time for command 4 & to print out the number of clients every 1 minute.
 	startTime = time.Now()
+	ticker := time.NewTicker(time.Second * 60)
+	go func() {
+		for i := range ticker.C {
+			f.Printf("Number of connected client = %d\n\n", numOfCon)
+			_ = i
+
+		}
+	}()
+
+	// time.Sleep(time.Second * 3)
+	// ticker.Stop()
 	f.Printf("The server is ready to receive on port %s\n\n", serverPort)
 
 	// to do : 클라이언트 배열을 생성해서 관리
 
 	for {
+
 		//connect client socket
 		conn, err := listener.Accept()
 		if nil != err {
+			conn.Close()
+			ticker.Stop()
 			f.Print("Bye bye~")
 			os.Exit(0)
-			return
 		}
-		defer conn.Close()
 
 		// when user enters 'Ctrl-C'
 		c := make(chan os.Signal, 1)
@@ -61,6 +75,7 @@ func main() {
 			for sig := range c {
 				if sig.String() == "interrupt" {
 					conn.Close()
+					ticker.Stop()
 					f.Printf("Bye bye~")
 					os.Exit(0)
 				}
