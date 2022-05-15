@@ -1,7 +1,7 @@
 /**
  * koeunseo
  * 20190143
- * MultiClientTCPServer.go
+ * ChatTCPServer.go
  **/
 
 package main

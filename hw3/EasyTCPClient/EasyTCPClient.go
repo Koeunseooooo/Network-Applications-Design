@@ -1,7 +1,7 @@
 /**
  * koeunseo
  * 20190143
- * TCPClient.go
+ * EasyTCPClient.go
  **/
 
 package main
@@ -114,12 +114,12 @@ func command_1(num string, conn net.Conn) {
 
 	// convert rttTime format from seconds to milliseconds
 	rttTime := elapsedTime.Seconds() * 1000
-	f.Printf("RTT = %.4f\n\n", rttTime)
+	f.Printf("\nRTT = %.4f\n\n", rttTime)
 }
 
 // command_2 ) print out the reply client's ip & port
 func command_2(num string, conn net.Conn) {
-	// startTime := time.Now()
+	startTime := time.Now()
 	conn.Write([]byte(num))
 
 	buffer := make([]byte, 1024)
@@ -128,16 +128,16 @@ func command_2(num string, conn net.Conn) {
 		f.Printf("Bye bye~")
 		os.Exit(0)
 	}
-	f.Print(string(buffer[:n]))
-	// elapsedTime := time.Since(startTime)
+	// f.Print(string(buffer[:n]))
+	elapsedTime := time.Since(startTime)
 
-	// responses := strings.Split(string(buffer), "]")
-	// ip := responses[0][1:]
-	// port := responses[1][1:]
+	responses := strings.Split(string(buffer[:n]), "]")
+	ip := responses[0][1:]
+	port := responses[1][1:]
 
-	// f.Printf("\nReply from server: client IP = %s, port = %s \n", ip, port)
-	// rttTime := elapsedTime.Seconds() * 1000
-	// f.Printf("RTT = %.4f\n\n", rttTime)
+	f.Printf("\nReply from server: client IP = %s, port = %s \n", ip, port)
+	rttTime := elapsedTime.Seconds() * 1000
+	f.Printf("RTT = %.4f\n\n", rttTime)
 }
 
 // command_3 ) print out the reply server's request total count
