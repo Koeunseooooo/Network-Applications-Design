@@ -18,12 +18,50 @@ import (
 	"time"
 )
 
-func main() {
-	serverName := "localhost"
-	serverPort := "30143"
+func checkStringAlphabet(str string) bool {
+	for _, charVariable := range str {
+		if (charVariable < 'a' || charVariable > 'z') && (charVariable < 'A' || charVariable > 'Z') {
+			return false
+		}
+	}
+	return true
+}
 
-	// connect server socket
+const serverName string = "localhost"
+const serverPort string = "30143"
+
+const errHead string = "0"
+const msgHead string = "1"
+const listHead string = "2"
+const dmHead string = "3"
+const verHead string = "4"
+const rttHead string = "5"
+
+func main() {
+	// buffer := make([]byte, 1024)
+
+	if len(os.Args) < 2 {
+		f.Printf("You must enter a Nickname")
+		os.Exit(0)
+	} else if len(os.Args) > 2 {
+		f.Printf("Nickname must be no spaces")
+		os.Exit(0)
+	}
+
+	nickName := os.Args[1:2][0]
+
+	if len(nickName) >= 32 {
+		f.Printf("Nickname must be within 32 characters.")
+		os.Exit(0)
+	}
+
+	if !checkStringAlphabet(nickName) {
+		f.Printf("Nickname must be in English.")
+		os.Exit(0)
+	}
+
 	conn, err := net.Dial("tcp", serverName+":"+serverPort)
+	conn.Write([]byte(nickName))
 
 	// if server socket not open, Client exits Program
 	if err != nil {
@@ -33,8 +71,8 @@ func main() {
 	defer conn.Close()
 
 	// Check the address and port number of the client(self)
-	localAddr := conn.LocalAddr().(*net.TCPAddr)
-	f.Printf("The client is running on port %d\n", localAddr.Port)
+	// localAddr := conn.LocalAddr().(*net.TCPAddr)
+	// f.Printf("The client is running on port %d\n", localAddr.Port)
 
 	for {
 		// when user enters 'Ctrl-C'
@@ -50,46 +88,81 @@ func main() {
 			}
 		}()
 
-		// user take input for the selection
-		var num string
-		menu()
-		f.Print("Input option :")
+		go ReadHandler(conn, nickName)
 
+		//write
 		num_reader := bufio.NewReader(os.Stdin)
-		num, err = num_reader.ReadString('\n')
+		msg, err := num_reader.ReadString('\n')
 		if nil != err {
 			f.Printf("Bye bye~")
 			os.Exit(0)
 		}
+		conn.Write([]byte(msgHead + msg))
+
+		// user take input for the selection
+		// var num string
+		// menu()
+		// f.Print("Input option :")
 
 		// print out the returened response based on the command
-		if num == "1\n" {
-			command_1(num, conn)
-		} else if num == "2\n" {
-			command_2(num, conn)
-		} else if num == "3\n" {
-			command_3(num, conn)
-		} else if num == "4\n" {
-			command_4(num, conn)
-		} else if num == "5\n" {
-			conn.Close()
-			f.Print("Bye bye~")
-			os.Exit(0)
-		} else {
-		}
+		// if num == "1\n" {
+		// 	command_1(num, conn)
+		// } else if num == "2\n" {
+		// 	command_2(num, conn)
+		// } else if num == "3\n" {
+		// 	command_3(num, conn)
+		// } else if num == "4\n" {
+		// 	command_4(num, conn)
+		// } else if num == "5\n" {
+		// 	conn.Close()
+		// 	f.Print("Bye bye~")
+		// 	os.Exit(0)
+		// } else {
+		// }
 
-		f.Print("\n")
+		// f.Print("\n")
 	}
 
 }
 
-func menu() {
-	f.Printf("<Menu>\n")
-	f.Printf("1) convert text to UPPER-case\n")
-	f.Printf("2) get my IP address and port number\n")
-	f.Printf("3) get server request count\n")
-	f.Printf("4) get server running time\n")
-	f.Printf("5) exit\n")
+func ReadHandler(conn net.Conn, nickName string) {
+	buffer := make([]byte, 1024)
+
+	//read
+	for {
+		n, err := conn.Read(buffer)
+		if nil != err {
+			conn.Close()
+			f.Print("Bye bye~")
+			os.Exit(0)
+		}
+
+		header := string(buffer[:n][0])
+		body := string(buffer[:n][1:])
+
+		if header == "0" {
+			f.Print(body)
+			f.Print("오류래!")
+			conn.Close()
+			os.Exit(0)
+		} else if header == "1" {
+			welcome_msg := body[:7]
+			clients_num := body[7:]
+			f.Printf("%s %s to CAU network class chat room at %s:%s. There are %s users connected.\n", welcome_msg, nickName, serverName, serverPort, clients_num)
+
+		} else if header == "2" {
+
+		} else if header == "3" {
+
+		} else if header == "4" {
+
+		} else if header == "5" {
+
+		} else if header == "6" {
+
+		}
+	}
+
 }
 
 // command_1 ) print out the reply text string
