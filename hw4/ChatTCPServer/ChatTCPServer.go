@@ -8,8 +8,6 @@ package main
 
 // Import Required Modules
 import (
-	"bytes"
-	// _ "fmt"
 	f "fmt"
 	"net"
 	"os"
@@ -20,12 +18,41 @@ import (
 
 var startTime time.Time
 
+const errHead string = "0"
+const welHead string = "1"
+const msgHead string = "2"
+const listHead string = "3"
+const dmHead string = "4"
+const verHead string = "5"
+const rttHead string = "6"
+
+var clients []client
 var id int
 
-var numOfReq int
-var numOfCon int
+type client struct {
+	id       int
+	nickName string
+	conn     net.Conn
+}
+
+func removeClient(client client) {
+	for i := 0; i < len(clients); i++ {
+		if client.id == clients[i].id {
+			clients[i] = clients[len(clients)-1]
+			clients = clients[:len(clients)-1]
+		}
+	}
+}
+
+func removeAllClients() {
+	for i := 0; i < len(clients); i++ {
+		clients[i].conn.Close()
+		clients = nil
+	}
+}
 
 func main() {
+	buffer := make([]byte, 1024)
 	// we use designated personal port number as serverPort
 	serverPort := "30143"
 
@@ -37,19 +64,9 @@ func main() {
 	}
 	defer listener.Close()
 
-	numOfReq = 0
-	numOfCon = 0
+	id = 0
 
-	// Measure time for command 4 & to print out the number of clients every 1 minute.
 	startTime = time.Now()
-	ticker := time.NewTicker(time.Second * 60)
-	go func() {
-		for i := range ticker.C {
-			f.Printf("Number of connected client = %d\n\n", numOfCon)
-			_ = i
-
-		}
-	}()
 
 	f.Printf("The server is ready to receive on port %s\n\n", serverPort)
 
@@ -60,90 +77,149 @@ func main() {
 		go func() {
 			for sig := range c {
 				if sig.String() == "interrupt" {
-
-					ticker.Stop()
+					removeAllClients()
 					f.Printf("Bye bye~")
 					os.Exit(0)
 				}
 			}
 		}()
-
 		//connect client socket
 		conn, err := listener.Accept()
 		if nil != err {
 			conn.Close()
-			ticker.Stop()
-			f.Print("Bye bye~")
+			f.Print("Bye bye~1")
 			os.Exit(0)
 		}
 
-		numOfCon += 1 // +1보다는 배열의 길이로 계산하는게 나을 것 같음
-		id += 1
+		if len(clients) >= 8 { // 어짜피 바로 disconnect할 꺼니까 스레드로 넘길필요 없지 않을까?
+			msg := "chatting room full. cannot connect"
+			conn.Write([]byte(errHead + msg))
+			conn.Close()
+		} else {
+			n, err := conn.Read(buffer)
+			if nil != err {
+				conn.Close()
+				f.Print("Bye bye~2")
+				os.Exit(0)
+			}
 
-		remoteAddr := conn.RemoteAddr()
-		// remoteAddrs := strings.Split(string(remoteAddr.String()), "]")
-		// ip := remoteAddrs[0][1:]
-		// port := remoteAddrs[1]
-		f.Printf("Connection request from %s\n\n", remoteAddr)
-		f.Printf("Client %d connected. Number of connected client = %d\n\n", id, numOfCon)
-		go ConnHandler(conn, remoteAddr, id)
+			nickName := string(buffer[:n])
+			isDuplicate := false
+			for i := 0; i < len(clients); i++ {
+				if nickName == clients[i].nickName {
+					msg := "that nickname is already used by another user.cannot connect."
+					f.Print("1")
+					conn.Write([]byte(errHead + msg))
+					conn.Close()
+					isDuplicate = true
+				}
+			}
+
+			if isDuplicate {
+				continue
+			}
+
+			id += 1
+			var client = client{id, nickName, conn}
+			clients = append(clients, client)
+
+			remoteAddr := conn.RemoteAddr()
+			go ConnHandler(client, remoteAddr, id)
+		}
 
 	}
 }
 
-func command_1(n int, conn net.Conn, buffer []byte) {
-	numOfReq += 1
-	f.Printf("Command 1\n\n")
-	conn.Write(bytes.ToUpper(buffer[1:n]))
-}
-
-func command_2(remoteAddr net.Addr, conn net.Conn) {
-	numOfReq += 1
-	f.Printf("Command 2\n\n")
-	conn.Write([]byte(remoteAddr.String()))
-}
-
-func command_3(conn net.Conn) {
-	numOfReq += 1
-	f.Printf("Command 3\n\n")
-	count_str := strconv.Itoa(numOfReq)
-	conn.Write([]byte(count_str))
-}
-
-func command_4(startTime time.Time, conn net.Conn) {
-	numOfReq += 1
-	f.Printf("Command 4\n\n")
-	// check eplasedTime
-	elapsedTime := time.Since(startTime)
-	conn.Write([]byte(elapsedTime.String()))
-}
-
-func ConnHandler(conn net.Conn, remoteAddr net.Addr, id int) {
-
+func ConnHandler(client client, remoteAddr net.Addr, id int) {
 	buffer := make([]byte, 1024)
+
+	welcome_msg := "welcome" + strconv.Itoa(len(clients))
+	client.conn.Write([]byte(welHead + welcome_msg))
+
+	f.Printf("%s joined from %s. There are %d users connected.\n", client.nickName, remoteAddr.String(), len(clients))
+
 	for {
-		n, err := conn.Read(buffer)
+
+		n, err := client.conn.Read(buffer)
 		if nil != err {
-			numOfCon -= 1
-			f.Printf("Client %d disconnected. Number of connected clients = %d\n\n", id, numOfCon)
-			conn.Close()
+			f.Printf("Client %d disconnected.\n\n", client.id)
+			removeClient(client)
+			client.conn.Close()
 			break
 		}
-
-		// Check only the first letter of request: To distinguish it from the text of command1
 		msg := string(buffer[:n][0])
-
-		// receive the command and reply with an appropriate response based on command
+		f.Print(msg)
 		if msg == "1" {
-			command_1(n, conn, buffer)
-
-		} else if msg == "2" {
-			command_2(remoteAddr, conn)
-
-		} else if msg == "3" {
-			command_3(conn)
-		} else if msg == "4" {
-			command_4(startTime, conn)
+			f.Print("...먀!")
 		}
 	}
 }
+
+// func command_1(n int, conn net.Conn, buffer []byte) {
+// 	numOfReq += 1
+// 	f.Printf("Command 1\n\n")
+// 	conn.Write(bytes.ToUpper(buffer[1:n]))
+// }
+
+// func command_2(remoteAddr net.Addr, conn net.Conn) {
+// 	numOfReq += 1
+// 	f.Printf("Command 2\n\n")
+// 	conn.Write([]byte(remoteAddr.String()))
+// }
+
+// func command_3(conn net.Conn) {
+// 	numOfReq += 1
+// 	f.Printf("Command 3\n\n")
+// 	count_str := strconv.Itoa(numOfReq)
+// 	conn.Write([]byte(count_str))
+// }
+
+// func command_4(startTime time.Time, conn net.Conn) {
+// 	numOfReq += 1
+// 	f.Printf("Command 4\n\n")
+// 	// check eplasedTime
+// 	elapsedTime := time.Since(startTime)
+// 	conn.Write([]byte(elapsedTime.String()))
+// }
+
+// func main() {
+//     var Slice1 = []int{1, 2, 3, 4, 5}
+//     fmt.Printf("slice1: %v\n", Slice1)
+
+//     Slice2 := remove(Slice1, 2)
+//     fmt.Printf("slice2: %v\n", Slice2)
+// }
+
+// 출력
+// slice1: [1 2 3 4 5]
+// slice2: [1 2 5 4]
+
+// 스레드에 넣었던 코드
+
+// buffer := make([]byte, 1024)
+// for {
+// n, err := conn.Read(buffer)
+// if nil != err {
+// 	numOfCon -= 1
+// 	f.Printf("Client %d disconnected. Number of connected clients = %d\n\n", id, numOfCon)
+// 	conn.Close()
+// 	break
+// }
+
+// Check only the first letter of request: To distinguish it from the text of command1
+// 이 0번째가 이제
+// msg := string(buffer[:n][0])
+
+// receive the command and reply with an appropriate response based on command
+// if msg == "1" {
+// 	command_1(n, conn, buffer)
+
+// } else if msg == "2" {
+// 	command_2(remoteAddr, conn)
+
+// } else if msg == "3" {
+// 	command_3(conn)
+// } else if msg == "4" {
+// 	command_4(startTime, conn)
+// }
+// }
