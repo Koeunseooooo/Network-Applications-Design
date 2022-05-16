@@ -21,10 +21,12 @@ var startTime time.Time
 const errHead string = "0"
 const welHead string = "1"
 const msgHead string = "2"
-const listHead string = "3"
-const dmHead string = "4"
-const verHead string = "5"
-const rttHead string = "6"
+
+// const msgHead string = "2"
+// const listHead string = "3"
+// const dmHead string = "4"
+// const verHead string = "5"
+// const rttHead string = "6"
 
 var clients []client
 var id int
@@ -121,6 +123,7 @@ func main() {
 
 			id += 1
 			var client = client{id, nickName, conn}
+			f.Print(client)
 			clients = append(clients, client)
 
 			remoteAddr := conn.RemoteAddr()
@@ -147,10 +150,27 @@ func ConnHandler(client client, remoteAddr net.Addr, id int) {
 			client.conn.Close()
 			break
 		}
-		msg := string(buffer[:n][0])
-		f.Print(msg)
-		if msg == "1" {
+		header := string(buffer[:n][0])
+		// f.Print(msg)
+		// if msg == "0" {
+		// 	// 안해도되나..?exit일때 얘기긴함
+		// 	f.Printf("Client %d disconnected.\n\n", client.id)
+		// 	removeClient(client)
+		// 	client.conn.Close()
+		// }
+
+		//client.conn.RemoteAddr().String() <- list 할때 필ㅇ료함
+		if header == "1" {
 			f.Print("...먀!")
+			body := string(buffer[:n][1:])
+			for i := 0; i < len(clients); i++ {
+				if client.id != clients[i].id {
+					user := client.nickName + "> "
+					msg := user + body
+					clients[i].conn.Write([]byte(msgHead + msg))
+				}
+			}
+
 		}
 	}
 }

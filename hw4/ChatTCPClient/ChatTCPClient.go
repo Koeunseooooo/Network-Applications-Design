@@ -88,39 +88,36 @@ func main() {
 			}
 		}()
 
+		//read - goroutine
 		go ReadHandler(conn, nickName)
 
 		//write
 		num_reader := bufio.NewReader(os.Stdin)
-		msg, err := num_reader.ReadString('\n')
+		text, err := num_reader.ReadString('\n')
 		if nil != err {
 			f.Printf("Bye bye~")
 			os.Exit(0)
 		}
-		conn.Write([]byte(msgHead + msg))
+		// conn.Write([]byte(msgHead + msg))
 
-		// user take input for the selection
-		// var num string
-		// menu()
-		// f.Print("Input option :")
+		if strings.HasPrefix(text, "\"list") && len(text) == 5 { // \list command
+			f.Print("list를 보여줘")
+		} else if strings.HasPrefix(text, "\"dm ") && len(strings.Split(text, " ")) == 3 { // \dm command
+			f.Print("dm을 보낼거야")
+		} else if strings.HasPrefix(text, "\"exit") && len(text) == 5 { // \exit command
+			conn.Close()
+			f.Printf("Bye bye~")
+			os.Exit(0)
+		} else if strings.HasPrefix(text, "\"ver") && len(text) == 4 { // \ver command
+			f.Printf("ver을 보여줘")
+		} else if strings.HasPrefix(text, "\"rtt") && len(text) == 4 { // \rtt command
+			f.Printf("rtt를 보여줘")
+		} else if strings.HasPrefix(text, "\"") {
+			f.Print("invalid command")
+		} else { // user can type a text message
+			conn.Write([]byte(msgHead + text))
+		}
 
-		// print out the returened response based on the command
-		// if num == "1\n" {
-		// 	command_1(num, conn)
-		// } else if num == "2\n" {
-		// 	command_2(num, conn)
-		// } else if num == "3\n" {
-		// 	command_3(num, conn)
-		// } else if num == "4\n" {
-		// 	command_4(num, conn)
-		// } else if num == "5\n" {
-		// 	conn.Close()
-		// 	f.Print("Bye bye~")
-		// 	os.Exit(0)
-		// } else {
-		// }
-
-		// f.Print("\n")
 	}
 
 }
@@ -148,18 +145,13 @@ func ReadHandler(conn net.Conn, nickName string) {
 		} else if header == "1" {
 			welcome_msg := body[:7]
 			clients_num := body[7:]
-			f.Printf("%s %s to CAU network class chat room at %s:%s. There are %s users connected.\n", welcome_msg, nickName, serverName, serverPort, clients_num)
+			f.Printf("[%s %s to CAU network class chat room at %s:%s.]\n[There are %s users connected.]\n", welcome_msg, nickName, serverName, serverPort, clients_num)
 
 		} else if header == "2" {
-
-		} else if header == "3" {
-
-		} else if header == "4" {
-
-		} else if header == "5" {
-
-		} else if header == "6" {
-
+			body := string(buffer[:n][1:])
+			f.Print(body)
+		} else {
+			f.Printf("신종오류다..")
 		}
 	}
 
