@@ -13,8 +13,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -27,7 +27,7 @@ func checkStringAlphabet(str string) bool {
 	return true
 }
 
-const serverName string = "localhost"
+const serverName string = "nsl2.cau.ac.kr"
 const serverPort string = "30143"
 
 const errHead string = "0"
@@ -37,8 +37,12 @@ const dmHead string = "3"
 const verHead string = "4"
 const rttHead string = "5"
 
+var startTime time.Time
+
+func printExitMessage() {
+	f.Println("gg~")
+}
 func main() {
-	// buffer := make([]byte, 1024)
 
 	if len(os.Args) < 2 {
 		f.Printf("You must enter a Nickname")
@@ -65,204 +69,115 @@ func main() {
 
 	// if server socket not open, Client exits Program
 	if err != nil {
-		f.Printf("Bye bye~")
+		conn.Close()
 		os.Exit(0)
 	}
-	defer conn.Close()
+	once := new(sync.Once) // create once
 
-	// Check the address and port number of the client(self)
-	// localAddr := conn.LocalAddr().(*net.TCPAddr)
-	// f.Printf("The client is running on port %d\n", localAddr.Port)
-
-	for {
+	go func() {
 		// when user enters 'Ctrl-C'
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
-		go func() {
-			for sig := range c {
-				if sig.String() == "interrupt" {
-					conn.Close()
-					f.Printf("Bye bye~")
-					os.Exit(0)
-				}
+		for sig := range c {
+			if sig.String() == "interrupt" {
+				once.Do(printExitMessage) // gg~
+				conn.Write([]byte(errHead))
+				conn.Close()
+				os.Exit(0)
+
 			}
-		}()
+		}
+	}()
+	for {
 
 		//read - goroutine
 		go ReadHandler(conn, nickName)
 
-		//write
 		num_reader := bufio.NewReader(os.Stdin)
 		text, err := num_reader.ReadString('\n')
 		if nil != err {
-			f.Printf("Bye bye~")
 			os.Exit(0)
 		}
-		// conn.Write([]byte(msgHead + msg))
 
-		if strings.HasPrefix(text, "\"list") && len(text) == 5 { // \list command
-			f.Print("list를 보여줘")
-		} else if strings.HasPrefix(text, "\"dm ") && len(strings.Split(text, " ")) == 3 { // \dm command
-			f.Print("dm을 보낼거야")
-		} else if strings.HasPrefix(text, "\"exit") && len(text) == 5 { // \exit command
+		text = strings.TrimSpace(text)
+
+		n_text := strings.Split(text, " ")
+
+		//write
+		if strings.HasPrefix(n_text[0], `\`+"list") && len(n_text) == 1 { // \list command
+			conn.Write([]byte(listHead))
+		} else if strings.HasPrefix(n_text[0], `\`+"dm") && len(n_text) >= 3 {
+			text = text[4:]
+			conn.Write([]byte(dmHead + text))
+		} else if strings.HasPrefix(n_text[0], `\`+"exit") && len(n_text) == 1 { // \exit command
+			f.Printf("gg~")
+			conn.Write([]byte(errHead))
 			conn.Close()
-			f.Printf("Bye bye~")
 			os.Exit(0)
-		} else if strings.HasPrefix(text, "\"ver") && len(text) == 4 { // \ver command
-			f.Printf("ver을 보여줘")
-		} else if strings.HasPrefix(text, "\"rtt") && len(text) == 4 { // \rtt command
-			f.Printf("rtt를 보여줘")
-		} else if strings.HasPrefix(text, "\"") {
-			f.Print("invalid command")
+		} else if strings.HasPrefix(n_text[0], `\`+"ver") && len(n_text) == 1 { // \ver command
+			conn.Write([]byte(verHead))
+		} else if strings.HasPrefix(n_text[0], `\`+"rtt") && len(n_text) == 1 { // \rtt command
+			startTime = time.Now()
+			conn.Write([]byte(rttHead))
+		} else if strings.HasPrefix(n_text[0], `\`) {
+			f.Print("invalid command\n")
 		} else { // user can type a text message
-			conn.Write([]byte(msgHead + text))
+			conn.Write([]byte(msgHead + text + "\n"))
 		}
+		f.Println()
 
 	}
 
 }
 
 func ReadHandler(conn net.Conn, nickName string) {
+	defer f.Println("world")
 	buffer := make([]byte, 1024)
 
 	//read
 	for {
+
 		n, err := conn.Read(buffer)
 		if nil != err {
 			conn.Close()
-			f.Print("Bye bye~")
 			os.Exit(0)
 		}
+		elapsedTime := time.Since(startTime)
 
 		header := string(buffer[:n][0])
 		body := string(buffer[:n][1:])
 
 		if header == "0" {
 			f.Print(body)
-			f.Print("오류래!")
 			conn.Close()
 			os.Exit(0)
-		} else if header == "1" {
-			welcome_msg := body[:7]
-			clients_num := body[7:]
-			f.Printf("[%s %s to CAU network class chat room at %s:%s.]\n[There are %s users connected.]\n", welcome_msg, nickName, serverName, serverPort, clients_num)
-
-		} else if header == "2" {
+		} else if header == "1" { // welcome message
 			body := string(buffer[:n][1:])
-			f.Print(body)
-		} else {
-			f.Printf("신종오류다..")
+			f.Println(body)
+
+		} else if header == "2" { // plain text message
+			body := string(buffer[:n][1:])
+			f.Println(body)
+		} else if header == "3" { // response "\list"
+			body := string(buffer[:n][1:])
+			slice := strings.Split(body, "@")
+			for i := 0; i < len(slice)-1; i++ {
+				list := strings.TrimRight(slice[i], "@")
+				f.Printf("[" + list + "]\n\n")
+			}
+		} else if header == "4" { //response "\dm"
+			body := string(buffer[:n][1:])
+			f.Printf(body + "\n\n")
+		} else if header == "5" { //response "\ver"
+			body := string(buffer[:n][1:])
+			f.Printf("[version=" + body + "]\n\n")
+		} else if header == "6" { //response "\rtt"
+			rttTime := elapsedTime.Seconds() * 1000
+			f.Printf("[RTT = %.4f]\n\n", rttTime)
+		} else if header == "7" { //left_msg
+			body := string(buffer[:n][1:])
+			f.Println(body)
 		}
 	}
-
-}
-
-// command_1 ) print out the reply text string
-func command_1(num string, conn net.Conn) {
-	f.Print("Input sentence: ")
-	input, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-
-	// measure RTT time
-	startTime := time.Now()
-	conn.Write([]byte(num + input))
-
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if nil != err {
-		f.Printf("Bye bye~")
-		os.Exit(0)
-	}
-	elapsedTime := time.Since(startTime)
-
-	response := string(buffer[:n])
-	f.Printf("\nReply from server: %s", strings.Trim(response, "\n"))
-
-	// convert rttTime format from seconds to milliseconds
-	rttTime := elapsedTime.Seconds() * 1000
-	f.Printf("\nRTT = %.4f\n\n", rttTime)
-}
-
-// command_2 ) print out the reply client's ip & port
-func command_2(num string, conn net.Conn) {
-	startTime := time.Now()
-	conn.Write([]byte(num))
-
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if nil != err {
-		f.Printf("Bye bye~")
-		os.Exit(0)
-	}
-	// f.Print(string(buffer[:n]))
-	elapsedTime := time.Since(startTime)
-
-	responses := strings.Split(string(buffer[:n]), "]")
-	ip := responses[0][1:]
-	port := responses[1][1:]
-
-	f.Printf("\nReply from server: client IP = %s, port = %s \n", ip, port)
-	rttTime := elapsedTime.Seconds() * 1000
-	f.Printf("RTT = %.4f\n\n", rttTime)
-}
-
-// command_3 ) print out the reply server's request total count
-func command_3(num string, conn net.Conn) {
-	startTime := time.Now()
-	conn.Write([]byte(num))
-
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if nil != err {
-		f.Printf("Bye bye~")
-		os.Exit(0)
-	}
-	elapsedTime := time.Since(startTime)
-
-	response := string(buffer[:n])
-	f.Printf("\nReply from server: requests serverd = %s \n", response)
-	rttTime := elapsedTime.Seconds() * 1000
-	f.Printf("RTT = %.4f\n", rttTime)
-
-}
-
-// command_4 ) print out the reply server's runtime
-func command_4(num string, conn net.Conn) {
-	startTime := time.Now()
-	conn.Write([]byte(num))
-
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if nil != err {
-		f.Printf("Bye bye~")
-		os.Exit(0)
-	}
-	elapsedTime := time.Since(startTime)
-
-	// Convert runtime in second format to HH:MM:SS format
-	response := string(buffer[:n])
-	response = strings.Split(response, ".")[0]
-	ss := ""
-	mm := ""
-	hh := ""
-
-	isminute := strings.Split(response, "m")
-	if len(isminute) > 1 {
-		mm = isminute[0]
-		ss = isminute[1]
-		ishour := strings.Split(response, "h")
-		if len(ishour) > 2 {
-			hh = ishour[0]
-			mm = ishour[1]
-			ss = ishour[2]
-		}
-	} else {
-		ss = response
-	}
-	ss_int, _ := strconv.Atoi(ss)
-	mm_int, _ := strconv.Atoi(mm)
-	hh_int, _ := strconv.Atoi(hh)
-	f.Printf("\nReply from server: runtime = %02d:%02d:%02d \n", hh_int, mm_int, ss_int)
-	rttTime := elapsedTime.Seconds() * 1000
-	f.Printf("RTT = %.4f\n\n", rttTime)
 
 }
