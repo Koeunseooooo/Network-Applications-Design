@@ -35,9 +35,9 @@ func printBoard(b Board) {
 			c := b[i][j]
 			if c == 0 {
 				fmt.Print(" +")
-			} else if c == 1 {
+			} else if c == 1 { //첫번째 턴
 				fmt.Print(" 0")
-			} else if c == 2 {
+			} else if c == 2 { //두번째 턴
 				fmt.Print(" @")
 			} else {
 				fmt.Print(" |")
@@ -121,7 +121,6 @@ func clear() {
 	fmt.Printf("%s", runtime.GOOS)
 
 	clearMap := make(map[string]func()) //Initialize it
-	fmt.Println(runtime.GOOS)
 	// print(clearMap)
 	// linux -> darwin
 	clearMap["darwin"] = func() {
@@ -159,7 +158,7 @@ func main() {
 
 	for {
 		print("please enter \"x y\" coordinate >> ")
-		cnt, _ := fmt.Scanf("%d %d ", &x, &y)
+		cnt, _ := fmt.Scanf("%d %d ", &x, &y) //cnt:입력 개수
 
 		if cnt != 2 {
 			fmt.Println("error, must enter x y!")
@@ -175,6 +174,7 @@ func main() {
 			continue
 		}
 
+		// turn이 바뀌는 부분. 우리는 여기가 각각 클라임.
 		if turn == 0 {
 			board[x][y] = 1
 		} else {
@@ -196,7 +196,7 @@ func main() {
 			break
 		}
 
-		turn = (turn + 1) % 2
+		turn = (turn + 1) % 2 /// 0,1,0,1바뀌는 부분
 	}
 
 	return
