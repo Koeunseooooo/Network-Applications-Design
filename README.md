@@ -1,12 +1,14 @@
 # Network-Applications-and-Design_2022
 
-> 중앙대학교 소프트웨어학부 4-1학기 네트워크응용설계 과목  
+> 중앙대학교 소프트웨어학부 4-1학기 네트워크응용설계   
 > 2022.03 ~ 06
 
 ## Table of Contents
 
 -   [HW2](##HW2)
 -   [HW3](##HW3)
+-   [HW4](##HW4)
+-   [HW5](##HW5)
 
 ## HW2
 
@@ -53,3 +55,10 @@
         -   This ID should not change even if a client disconnects
     -   Whenever a new client connects, or an existing client disconnects, print out the client ID and the number of clients on the server as well as ALL connected clients
     -   print out the number of clients ever 1 MINUTE (I use NewTicker to output repeatedly)
+
+
+## HW4
+(작성 예정)
+
+## HW5
+(작성 예정)
